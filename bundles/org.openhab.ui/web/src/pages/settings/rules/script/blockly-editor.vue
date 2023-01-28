@@ -357,15 +357,6 @@
             </value>
           </block>
           <block type="oh_getitem_attribute">
-            <value name="item">
-              <shadow type="oh_getitem">
-                <value name="itemName">
-                  <shadow type="oh_item" />
-                </value>
-              </shadow>
-            </value>
-          </block>
-          <block type="oh_getitem">
             <value name="itemName">
               <shadow type="oh_item" />
             </value>

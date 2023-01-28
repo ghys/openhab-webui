@@ -257,7 +257,7 @@ export default function (f7, isGraalJs) {
     init: function () {
       this.appendValueInput('itemName')
         .appendField('datetime from item')
-        .setCheck(['String', 'oh_item'])
+        .setCheck('String')
       this.setOutput(true, 'ZonedDateTime')
       this.setColour(70)
       this.setTooltip('ZonedDateTime from a datetime item')

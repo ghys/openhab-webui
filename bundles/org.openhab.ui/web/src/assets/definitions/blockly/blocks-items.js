@@ -19,7 +19,7 @@ export default function (f7, isGraalJs) {
       this.setInputsInline(true)
       this.setTooltip('Pick an item from the Model')
       this.setHelpUrl('https://www.openhab.org/docs/configuration/blockly/rules-blockly-items-things.html#item')
-      this.setOutput(true, 'oh_item')
+      this.setOutput(true, 'String')
     }
   }
 
@@ -33,13 +33,12 @@ export default function (f7, isGraalJs) {
     init: function () {
       this.appendValueInput('groupName')
         .appendField('get members of group')
-        .setCheck(['String', 'oh_item'])
+        .setCheck(['String'])
       this.setInputsInline(false)
       this.setOutput(true, 'Array')
       this.setColour(0)
       this.setTooltip('Retrieve the members of a group')
       this.setHelpUrl('https://www.openhab.org/docs/configuration/blockly/rules-blockly-items-things.html#get-members-of-group')
-      this.setOutput(true, null)
     }
   }
 
@@ -47,9 +46,9 @@ export default function (f7, isGraalJs) {
     const groupName = javascriptGenerator.valueToCode(block, 'groupName', javascriptGenerator.ORDER_ATOMIC)
 
     if (isGraalJs) {
-      return [`items.getItem(${groupName}).members`, 0]
+      return [`items.getItem(${groupName}).members.map((item) => item.name)`, 0]
     } else {
-      return [`Java.from(itemRegistry.getItem(${groupName}).members)`, 0]
+      return [`Java.from(itemRegistry.getItem(${groupName}).members).map(function (item) { return item.name; }))`, 0]
     }
   }
 
@@ -64,7 +63,6 @@ export default function (f7, isGraalJs) {
       this.setColour(0)
       this.setTooltip('Retrieve the items that have all the given tags')
       this.setHelpUrl('https://www.openhab.org/docs/configuration/blockly/rules-blockly-items-things.html#get-items-with-tag')
-      this.setOutput(true, null)
     }
   }
 
@@ -80,31 +78,9 @@ export default function (f7, isGraalJs) {
     }
 
     if (isGraalJs) {
-      return [`items.getItemsByTag(${tags})`, 0]
+      return [`items.getItemsByTag(${tags}).map((item) => item.name)`, 0]
     } else {
-      return [`Java.from(itemRegistry.getItemsByTag(${tags}))`, 0]
-    }
-  }
-
-  Blockly.Blocks['oh_getitem'] = {
-    init: function () {
-      this.appendValueInput('itemName')
-        .appendField('get item')
-        .setCheck(['String', 'oh_item'])
-      this.setInputsInline(false)
-      this.setOutput(true, 'oh_itemtype')
-      this.setColour(0)
-      this.setTooltip('Get an item from the item registry')
-      this.setHelpUrl('https://www.openhab.org/docs/configuration/blockly/rules-blockly-items-things.html#get-item')
-    }
-  }
-
-  javascriptGenerator['oh_getitem'] = function (block) {
-    const itemName = javascriptGenerator.valueToCode(block, 'itemName', javascriptGenerator.ORDER_ATOMIC)
-    if (isGraalJs) {
-      return [`items.getItem(${itemName})`, 0]
-    } else {
-      return [`itemRegistry.getItem(${itemName})`, 0]
+      return [`Java.from(itemRegistry.getItemsByTag(${tags}).map(function (item) { return item.name; }))`, 0]
     }
   }
 
@@ -113,7 +89,7 @@ export default function (f7, isGraalJs) {
     init: function () {
       this.appendValueInput('itemName')
         .appendField('get state of item')
-        .setCheck(['String', 'oh_item'])
+        .setCheck('String')
       this.setInputsInline(false)
       this.setOutput(true, 'String')
       this.setColour(0)
@@ -146,12 +122,12 @@ export default function (f7, isGraalJs) {
     init: function () {
       let thisBlock = this
       let dropdown = new Blockly.FieldDropdown(
-        [['name', 'Name'], ['label', 'Label'], ['state', 'State'], ['category', 'Category'], ['tags', 'Tags'], ['groups', 'GroupNames'], ['type', 'Type']],
+        [['label', 'Label'], ['state', 'State'], ['category', 'Category'], ['tags', 'Tags'], ['groups', 'GroupNames'], ['type', 'Type']],
         function (newMode) {
           thisBlock.updateType_(newMode)
         })
-      this.appendValueInput('item')
-        .setCheck('oh_itemtype')
+      this.appendValueInput('itemName')
+        .setCheck('String')
         .appendField('get ')
         .appendField(dropdown, 'attributeName')
         .appendField('of item')
@@ -197,17 +173,17 @@ export default function (f7, isGraalJs) {
   * Code part
   */
   javascriptGenerator['oh_getitem_attribute'] = function (block) {
-    const theItem = javascriptGenerator.valueToCode(block, 'item', javascriptGenerator.ORDER_ATOMIC)
+    const theItem = javascriptGenerator.valueToCode(block, 'itemName', javascriptGenerator.ORDER_ATOMIC)
     let attributeName = block.getFieldValue('attributeName')
 
     if (isGraalJs) {
       attributeName = attributeName.charAt(0).toLowerCase() + attributeName.slice(1)
-      return [`${theItem}.${attributeName}`, 0]
+      return [`items.getItem("${theItem}").${attributeName}`, 0]
     } else {
       if (attributeName === 'Tags' || attributeName === 'GroupNames') {
-        return [`Java.from(${theItem}.get${attributeName}())`, 0]
+        return [`Java.from(itemRegistry.getItem(${theItem}).get${attributeName}())`, 0]
       } else {
-        return [`${theItem}.get${attributeName}()`, 0]
+        return [`itemRegistry.getItem(${theItem}).get${attributeName}()`, 0]
       }
     }
   }
