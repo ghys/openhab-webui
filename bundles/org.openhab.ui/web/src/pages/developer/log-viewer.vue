@@ -169,7 +169,7 @@
       <f7-col>
         <f7-card class="custom-card">
           <div class="table-container" ref="tableContainer" @scroll="handleScroll">
-            <table ref="dataTable">
+            <!-- <table ref="dataTable">
               <tbody>
                 <tr v-for="entity in filteredTableData" :key="entity.id" class="table-rows"
                     :class="entity.level.toLowerCase()">
@@ -185,7 +185,31 @@
                   <td v-html="highlightText(entity.message)" class="nowrap" />
                 </tr>
               </tbody>
-            </table>
+            </table> -->
+            <f7-list
+              no-hairlines no-hairlines-between
+              class="log-entries"
+              v-if="vlReady"
+              ref="virtualList"
+              virtual-list
+              :virtual-list-params="{ items: tableData, searchAll: vlSearchAll, renderExternal: vlRenderExternal, height: 38 }">
+              <ul>
+                <f7-list-item
+                  class="log-entries"
+                  v-for="(item, index) in vlData.items"
+                  :key="index"
+                  :style="`top: ${vlData.topPosition}px`">
+                  <div class="log-entry-header">
+                    <div class="time sticky">{{ item.time }}<span class="milliseconds">{{ item.milliseconds }}</span></div>
+                    <div class="level" :class="item.level.toLowerCase()">{{ item.level }}</div>
+                    <div class="logger-name">{{ item.loggerName }}</div>
+                  </div>
+                  <div class="log-entry-message">
+                    <div class="log-message">{{ item.message }}</div>
+                  </div>
+                </f7-list-item>
+              </ul>
+            </f7-list>
           </div>
         </f7-card>
       </f7-col>
@@ -205,14 +229,60 @@
   .custom-card
     margin 0
     padding 0
-    width 100%
+    min-width 100%
     display flex
     flex-direction column
     overflow hidden
 
+  .log-entries
+    margin 0
+    white-space nowrap
+    height 38px !important
+    // overflow-y auto
+    // overflow-x auto
+    .item-content
+      justify-content flex-start
+      height 38px !important
+      .item-inner
+        width auto !important
+        min-width 100%
+        flex-direction column
+        align-items flex-start
+        justify-content flex-start
+        padding 0
+        height 38px !important
+        .log-entry-header
+          display flex
+          font-size 12px
+          flex-direction row
+          color var(--f7-list-item-footer-text-color)
+          .time
+            padding-left 3px
+            position sticky
+            color black
+            background #f1f1f1
+            left 0
+            z-index 1
+            width 85px
+            text-align left
+            font-family monospace
+          .level
+            position sticky
+            left 85px
+            width 50px
+            padding-left 3px
+            padding-right 3px
+            text-align center
+            text-color black
+          .logger-name
+            padding-left 3px
+        .log-entry-message
+          font-size 13px
+          .log-message
+              margin-bottom 2px
   .table-container
     overflow-y auto
-    overflow-x auto
+    min-width 100%
     display block
     transition height 0.2s ease-in-out
     height calc(100vh - var(--f7-navbar-height) - var(--f7-subnavbar-height) - var(--f7-toolbar-height))
@@ -236,22 +306,22 @@
     background #f1f1f1
     z-index 1
 
-  tr.error
+  .error
     background-color rgb(255, 96, 96)
     color black
 
-  tr.warn
+  .warn
     background-color rgb(247, 253, 163)
     color black
 
-  tr.info
+  .info
     color black
     background-color rgb(163, 253, 163)
 
-  tr.debug
+  .debug
     color inherit
 
-  tr.trace
+  .trace
     color rgb(112, 112, 112)
 
   .disabled-link
@@ -329,6 +399,9 @@ export default {
   },
   data () {
     return {
+      vlData: {
+        items: []
+      },
       stateConnecting: false,
       stateConnected: false,
       stateProcessing: true,
@@ -385,6 +458,16 @@ export default {
     }
   },
   methods: {
+    vlSearchAll (query, items) {
+      const found = []
+      for (let i = 0; i < items.length; i += 1) {
+        if (items[i].title.toLowerCase().indexOf(query.toLowerCase()) >= 0 || query.trim() === '') found.push(i)
+      }
+      return found
+    },
+    vlRenderExternal (vl, vlData) {
+      this.vlData = vlData
+    },
     onPageAfterIn () {
       this.$oh.api.get('/rest/logging/').then(data => {
         data.loggers.forEach(logger => this.loggerPackages.push(logger))
@@ -417,6 +500,12 @@ export default {
       this.filterTextLowerCase = this.filterText.trim().toLocaleLowerCase()
 
       this.showErrors = localStorage.getItem('openhab.ui:logviewer.logShowErrors')
+
+      this.vlReady = true
+      setTimeout(() => {
+        console.log(this.$refs.virtualList)
+        this.$refs.virtualList.f7VirtualList.update()
+      }, 1000)
     },
     onPageBeforeOut () {
       this.loggingStop()
@@ -516,6 +605,8 @@ export default {
         message: logEntry.message
       })
 
+      this.$refs.virtualList.f7VirtualList.update()
+
       if (this.tableData.length > this.maxEntries) {
         const removedElement = this.tableData.shift()
         this.logStart = removedElement.time
@@ -559,6 +650,10 @@ export default {
         tableContainer.scrollTop = tableContainer.scrollHeight
         // Delay manual scroll detection to avoid autoscrolling being defeated when new logs arrive
         this.scrollTime = Date.now() + 250
+      }
+
+      if (this.$refs.virtualList && this.$refs.virtualList.f7VirtualList) {
+        this.$refs.virtualList.f7VirtualList.scrollToItem(this.tableData.length - 1)
       }
     },
     handleScroll () {
